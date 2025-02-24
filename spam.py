@@ -6,9 +6,13 @@ import clone
 import os
 import conf.config as config
 import status
+import snapshot
 
 def setup() -> None:
     pass
+
+
+#TODO cleanup into multiple parser subclasses
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="SPAM")
@@ -39,13 +43,13 @@ def main() -> None:
     clone_parser.add_argument(
         'source_id',
         nargs='?',
-        type=str,
+        type=int,
         help='ID of VM to be cloned. Optional if -e is set.'
     )
     clone_parser.add_argument(
         'newid',
         nargs='?',
-        type=str,
+        type=int,
         help='ID of target VM that will be created. Optional if -e is set.'
     )
     clone_parser.add_argument(
@@ -89,13 +93,13 @@ def main() -> None:
     start_parser.add_argument(
         'vmid',
         nargs='?',
-        type=str,
+        type=int,
         help='VMID of the VM. Optional if -r is set.'
     )
     start_parser.add_argument(
         '-r', '--range',
         nargs=2,
-        metavar=('start', 'stop'),
+        metavar=('first', 'last'),
         type=int,
         help='Range of VMIDs to start (inclusive).'
     )
@@ -110,15 +114,46 @@ def main() -> None:
     stop_parser.add_argument(
         'vmid',
         nargs='?',
-        type=str,
+        type=int,
         help='VMID of the VM. Optional if -r is set.'
     )
     stop_parser.add_argument(
         '-r', '--range',
         nargs=2,
-        metavar=('start', 'stop'),
+        metavar=('first', 'last'),
         type=int,
         help='Range of VMIDs to stop (inclusive).'
+    )
+
+    snapshot_parser = subparsers.add_parser('rollback', help='Rollback VM')
+
+    snapshot_parser.add_argument(
+        'node',
+        type=str,
+        help='Name of node that the VM to be rolled back is on'
+    )
+    snapshot_parser.add_argument(
+        'vmid',
+        nargs='?',
+        type=int,
+        help='VMID of the VM. Optional if -r is set.'
+    )
+    snapshot_parser.add_argument(
+        '-n', '--name',
+        type=str,
+        help='Name of the snapshot. If not specified, it will snapshot to first snapshot.'
+    )
+    snapshot_parser.add_argument(
+        '-r', '--range',
+        nargs=2,
+        metavar=('first', 'last'),
+        type=int,
+        help='Range of VMIDs to rollback to first snapshot (inclusive).'
+    )
+    snapshot_parser.add_argument(
+        '-s', '--start',
+        action='store_true',
+        help='Start the VM after rolling back.'
     )
 
     load_dotenv()
@@ -139,7 +174,7 @@ def main() -> None:
             env: config.Env = config.get_env(conf)
             clone.clone_env(prox, env)
         else:
-            include = {'newid', 'snapshot', 'target', 'full', 'pool', 'name'}
+            include: set[str] = {'newid', 'snapshot', 'target', 'full', 'pool', 'name'}
             args_dict: dict[str,str] = {key: (1 if value is True else 0 if value is False else value) for key, value in vars(args).items() if value is not None and key in include}
             clone.clone_vm(prox, args.node, args.source_id, **args_dict)
     elif args.command == 'start':
@@ -158,6 +193,21 @@ def main() -> None:
             status.stop_vm(prox, args.node, args.vmid)
         else:
             status.stop_vm_range(prox, args.node, args.range[0], args.range[1])
+    elif args.command == 'rollback':
+        if not args.vmid and not args.range:
+            parser.error("The 'vmid' argument are required unless -r is set.")
+
+        # make this into function
+        include: set[str] = {'start'}
+        args_dict: dict[str,str] = {key: (1 if value is True else 0 if value is False else value) for key, value in vars(args).items() if value is not None and key in include}
+       
+        if not args.range:
+            if args.name:
+                snapshot.rollback_to_snapshot(prox, args.node, args.vmid, args.name, **args_dict)
+            else:
+                snapshot.rollback_first_snapshot(prox, args.node, args.vmid, **args_dict)
+        else:
+            snapshot.rollback_first_snapshot_range(prox, args.node, args.range[0], args.range[1], **args_dict)
     else:
         if args.setup:
             setup()
@@ -172,6 +222,7 @@ if __name__ == "__main__":
     # PROXMOX_PASSWORD = os.getenv('PROXMOX_PASSWORD')
     # PROXMOX_REALM = os.getenv('PROXMOX_REALM')
     # prox = ProxmoxAPI(PROXMOX_HOST, user=f'{PROXMOX_USER}@{PROXMOX_REALM}', password=PROXMOX_PASSWORD, verify_ssl=False)
+    # snapshot.rollback_first_snapshot(prox, "cuci-r730-pve03", 23021) 
     # conf: dict = config.get_config("conf/box.yaml")
     # env: config.Env = config.get_env(conf)
     # # Testing

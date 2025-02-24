@@ -10,9 +10,9 @@ def start_vm(prox: ProxmoxAPI, node: str, vmid: str) -> None:
         print(e)
     return
 
-def start_vm_range(prox: ProxmoxAPI, node: str, start: int, stop: int) -> None:
+def start_vm_range(prox: ProxmoxAPI, node: str, first: int, last: int) -> None:
 
-    for vmid in range(start, stop + 1):
+    for vmid in range(first, last + 1):
         start_vm(prox, node, vmid)
     return
 
@@ -25,8 +25,8 @@ def stop_vm(prox: ProxmoxAPI, node: str, vmid: str) -> None:
         print(e)
     return
 
-def stop_vm_range(prox: ProxmoxAPI, node: str, start: int, stop: int) -> None:
+def stop_vm_range(prox: ProxmoxAPI, node: str, first: int, last: int) -> None:
 
-    for vmid in range(start, stop + 1):
+    for vmid in range(first, last + 1):
         stop_vm(prox, node, vmid)
     return
