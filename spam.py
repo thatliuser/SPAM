@@ -5,6 +5,7 @@ from dotenv import load_dotenv
 import clone
 import os
 import conf.config as config
+import status
 
 def setup() -> None:
     pass
@@ -72,10 +73,52 @@ def main() -> None:
         type=str,
         help='The name of the snapshot.'
     )
-    parser.add_argument(
+    clone_parser.add_argument(
         '-v', '--verbose',
         action='store_true',
         help='Enable verbose output'
+    )
+
+    start_parser = subparsers.add_parser('start', help='Start VMs')
+
+    start_parser.add_argument(
+        'node',
+        type=str,
+        help='Name of node that the VM to be started is on.'
+    )
+    start_parser.add_argument(
+        'vmid',
+        nargs='?',
+        type=str,
+        help='VMID of the VM. Optional if -r is set.'
+    )
+    start_parser.add_argument(
+        '-r', '--range',
+        nargs=2,
+        metavar=('start', 'stop'),
+        type=int,
+        help='Range of VMIDs to start (inclusive).'
+    )
+
+    stop_parser = subparsers.add_parser('stop', help='Stop VMs')
+
+    stop_parser.add_argument(
+        'node',
+        type=str,
+        help='Name of node that the VM to be stopped is on.'
+    )
+    stop_parser.add_argument(
+        'vmid',
+        nargs='?',
+        type=str,
+        help='VMID of the VM. Optional if -r is set.'
+    )
+    stop_parser.add_argument(
+        '-r', '--range',
+        nargs=2,
+        metavar=('start', 'stop'),
+        type=int,
+        help='Range of VMIDs to stop (inclusive).'
     )
 
     load_dotenv()
@@ -99,6 +142,22 @@ def main() -> None:
             include = {'newid', 'snapshot', 'target', 'full', 'pool', 'name'}
             args_dict: dict[str,str] = {key: (1 if value is True else 0 if value is False else value) for key, value in vars(args).items() if value is not None and key in include}
             clone.clone_vm(prox, args.node, args.source_id, **args_dict)
+    elif args.command == 'start':
+        if not args.vmid and not args.range:
+            parser.error("The 'vmid' argument are required unless -r is set.")
+
+        if not args.range:
+            status.start_vm(prox, args.node, args.vmid)
+        else:
+            status.start_vm_range(prox, args.node, args.range[0], args.range[1])
+    elif args.command == 'stop':
+        if not args.vmid and not args.range:
+            parser.error("The 'vmid' argument are required unless -r is set.")
+
+        if not args.range:
+            status.stop_vm(prox, args.node, args.vmid)
+        else:
+            status.stop_vm_range(prox, args.node, args.range[0], args.range[1])
     else:
         if args.setup:
             setup()
