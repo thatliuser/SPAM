@@ -7,6 +7,7 @@ import os
 import conf.config as config
 import status
 import snapshot
+import utils
 
 def setup() -> None:
     pass
@@ -125,12 +126,12 @@ def main() -> None:
         help='Range of VMIDs to stop (inclusive).'
     )
 
-    snapshot_parser = subparsers.add_parser('rollback', help='Rollback VM')
+    snapshot_parser = subparsers.add_parser('snapshot', help='Snapshot Utility')
 
     snapshot_parser.add_argument(
         'node',
         type=str,
-        help='Name of node that the VM to be rolled back is on'
+        help='Name of node that the VM is on'
     )
     snapshot_parser.add_argument(
         'vmid',
@@ -141,17 +142,27 @@ def main() -> None:
     snapshot_parser.add_argument(
         '-n', '--name',
         type=str,
-        help='Name of the snapshot. If not specified, it will snapshot to first snapshot.'
+        help='Name of the snapshot. Default is base.'
     )
     snapshot_parser.add_argument(
         '-r', '--range',
         nargs=2,
         metavar=('first', 'last'),
         type=int,
-        help='Range of VMIDs to rollback to first snapshot (inclusive).'
+        help='Range of VMIDs to modify (inclusive).'
     )
     snapshot_parser.add_argument(
         '-s', '--start',
+        action='store_true',
+        help='Start the VM after rolling back.'
+    )
+    snapshot_parser.add_argument(
+        '-b', '--rollback',
+        action='store_true',
+        help='Rollback VM'
+    )
+    snapshot_parser.add_argument(
+        '-m', '--vmstate',
         action='store_true',
         help='Start the VM after rolling back.'
     )
@@ -180,11 +191,10 @@ def main() -> None:
     elif args.command == 'start':
         if not args.vmid and not args.range:
             parser.error("The 'vmid' argument are required unless -r is set.")
-
         if not args.range:
             status.start_vm(prox, args.node, args.vmid)
         else:
-            status.start_vm_range(prox, args.node, args.range[0], args.range[1])
+            utils.function_over_range(status.start_vm, args.range[0], args.range[1], prox, args.node)
     elif args.command == 'stop':
         if not args.vmid and not args.range:
             parser.error("The 'vmid' argument are required unless -r is set.")
@@ -192,22 +202,26 @@ def main() -> None:
         if not args.range:
             status.stop_vm(prox, args.node, args.vmid)
         else:
-            status.stop_vm_range(prox, args.node, args.range[0], args.range[1])
-    elif args.command == 'rollback':
+            utils.function_over_range(status.stop_vm, args.range[0], args.range[1], prox, args.node)
+    elif args.command == 'snapshot':
         if not args.vmid and not args.range:
             parser.error("The 'vmid' argument are required unless -r is set.")
 
         # make this into function
-        include: set[str] = {'start'}
-        args_dict: dict[str,str] = {key: (1 if value is True else 0 if value is False else value) for key, value in vars(args).items() if value is not None and key in include}
-       
-        if not args.range:
-            if args.name:
-                snapshot.rollback_to_snapshot(prox, args.node, args.vmid, args.name, **args_dict)
+        if args.rollback:
+            include: set[str] = {'start', 'name'}
+            args_dict: dict[str,str] = {key: (1 if value is True else 0 if value is False else value) for key, value in vars(args).items() if value is not None and key in include}
+            if not args.range:
+                snapshot.rollback_to_snapshot(prox, args.node, args.vmid, **args_dict)
             else:
-                snapshot.rollback_first_snapshot(prox, args.node, args.vmid, **args_dict)
+                utils.function_over_range(snapshot.rollback_to_snapshot, args.range[0], args.range[1], prox, args.node, **args_dict)
         else:
-            snapshot.rollback_first_snapshot_range(prox, args.node, args.range[0], args.range[1], **args_dict)
+            include: set[str] = {'vmstate', 'name'}
+            args_dict: dict[str,str] = {key: (1 if value is True else 0 if value is False else value) for key, value in vars(args).items() if value is not None and key in include}
+            if not args.range:
+                snapshot.make_snapshot(prox, args.node, args.vmid, **args_dict)
+            else:
+                utils.function_over_range(snapshot.make_snapshot, args.range[0], args.range[1], prox, args.node, **args_dict)
     else:
         if args.setup:
             setup()

@@ -1,8 +1,11 @@
 from proxmoxer import ProxmoxAPI
 import utils
 
-def rollback_to_snapshot(prox: ProxmoxAPI, node: str, vmid: str, snapname: str, **kwargs) -> None:
+def rollback_snapshot(prox: ProxmoxAPI, node: str, snapname: str = "", vmid: int = -1, **kwargs) -> None:
     try:
+        if snapname == "":
+            snapshots = prox.nodes(node).qemu(vmid).snapshot.get()
+            snapname = snapshots[0]["name"]
         task_id = prox.nodes(node).qemu(vmid).snapshot(snapname).rollback.post(**kwargs)
         utils.block_until_done(prox, task_id, node)
         print(f"Rolling back VMID {vmid} in {node} to {snapname} snapshot.")
@@ -10,18 +13,12 @@ def rollback_to_snapshot(prox: ProxmoxAPI, node: str, vmid: str, snapname: str, 
         print(e)
     return
 
-def rollback_first_snapshot(prox: ProxmoxAPI, node: str, vmid: int, **kwargs) -> None:
+
+def make_snapshot(prox: ProxmoxAPI, node: str, snapname: str = "base", vmid: int = -1, **kwargs):
     try:
-        snapshots = prox.nodes(node).qemu(vmid).snapshot.get()
-        first_snapshot = snapshots[0]["name"]
-        task_id = prox.nodes(node).qemu(vmid).snapshot(first_snapshot).rollback.post(**kwargs)
+        task_id = prox.nodes(node).qemu(vmid).snapshot.post(snapname=snapname,**kwargs)
         utils.block_until_done(prox, task_id, node)
-        print(f"Rolling back VMID {vmid} in {node} to {first_snapshot} snapshot.")
+        print(f"Snapshotting VMID {vmid} in {node} as {snapname} snapshot.")
     except Exception as e:
         print(e)
-    return
-
-def rollback_first_snapshot_range(prox: ProxmoxAPI, node: str, first: int, last: int, **kwargs) -> None:
-    for vmid in range(first, last + 1):
-        rollback_first_snapshot(prox, node, vmid, **kwargs)
     return
