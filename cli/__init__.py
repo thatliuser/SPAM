@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 import cli.arguments.options as options
-
+import sys
 # Inspiration from Ansible code structure
 
 class CLI(ABC):
@@ -8,6 +8,7 @@ class CLI(ABC):
         self.args = args
         self.parser = None
         self.options = None
+        self.prox = None
 
     @abstractmethod
     def init_parser(self, usage: str = "", desc = None) -> None:
@@ -15,10 +16,23 @@ class CLI(ABC):
 
     def parse(self) -> None:
         self.init_parser()
-        self.parser.parse_args(self.args[1:])
-        options = self.post_process_args(options)
+        options = self.parser.parse_args(self.args[1:])
+        self.options = self.post_process_args(options)
     
     @abstractmethod
     def post_process_args(self, options):
         # do post processing here
         return options
+    
+    @abstractmethod
+    def run(self):
+        self.parse()
+
+    @classmethod
+    def cli_executor(cls, args=None):
+        if args is None:
+            args = sys.argv
+        cli = cls(args)
+        cli.run()
+
+# add method to connect to proxmox 

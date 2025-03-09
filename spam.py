@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 import clone
 import os
 import conf.config as config
-import status
+import utils.status as status
 import snapshot
 import utils
 
@@ -140,7 +140,7 @@ def main() -> None:
         help='VMID of the VM. Optional if -r is set.'
     )
     snapshot_parser.add_argument(
-        '-n', '--name',
+        '-n', '--snapname',
         type=str,
         help='Name of the snapshot. Default is base.'
     )
@@ -209,14 +209,14 @@ def main() -> None:
 
         # make this into function
         if args.rollback:
-            include: set[str] = {'start', 'name'}
+            include: set[str] = {'start', 'snapname'}
             args_dict: dict[str,str] = {key: (1 if value is True else 0 if value is False else value) for key, value in vars(args).items() if value is not None and key in include}
             if not args.range:
                 snapshot.rollback_to_snapshot(prox, args.node, args.vmid, **args_dict)
             else:
-                utils.function_over_range(snapshot.rollback_to_snapshot, args.range[0], args.range[1], prox, args.node, **args_dict)
+                utils.function_over_range(snapshot.rollback_snapshot, args.range[0], args.range[1], prox, args.node, **args_dict)
         else:
-            include: set[str] = {'vmstate', 'name'}
+            include: set[str] = {'vmstate', 'snapname'}
             args_dict: dict[str,str] = {key: (1 if value is True else 0 if value is False else value) for key, value in vars(args).items() if value is not None and key in include}
             if not args.range:
                 snapshot.make_snapshot(prox, args.node, args.vmid, **args_dict)
