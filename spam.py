@@ -1,9 +1,5 @@
 import argparse
-
-from proxmoxer import ProxmoxAPI
-from dotenv import load_dotenv
 import clone
-import os
 import conf.config as config
 import utils.status as status
 import snapshot
@@ -28,61 +24,6 @@ def main() -> None:
 
     clone_parser = subparsers.add_parser('clone', help='Clone VMs')
 
-    clone_parser.add_argument(
-        '-e', '--environment',
-        type=str,
-        nargs='?',
-        const='conf/env.yaml',
-        help='Specify and use configuration file to define targets for running the scripts against. Default file is conf/env.yaml'
-    )  
-    clone_parser.add_argument(
-        'node',
-        nargs='?',
-        type=str,
-        help='Name of node that the VM to be cloned is on. Optional if -e is set.'
-    )
-    clone_parser.add_argument(
-        'source_id',
-        nargs='?',
-        type=int,
-        help='ID of VM to be cloned. Optional if -e is set.'
-    )
-    clone_parser.add_argument(
-        'newid',
-        nargs='?',
-        type=int,
-        help='ID of target VM that will be created. Optional if -e is set.'
-    )
-    clone_parser.add_argument(
-        '-n', '--name',
-        type=str,
-        help='Set a name for the new VM.'
-    )
-    clone_parser.add_argument(
-        '-p', '--pool',
-        type=str,
-        help='Add the new VM to the specified pool.'
-    )
-    clone_parser.add_argument(
-        '-f', '--full',
-        action='store_true',
-        help='Create a full copy of all disks. This is always done when you clone a normal VM. For VM templates, it will try to create a linked clone by default.'
-    )
-    clone_parser.add_argument(
-        '-t', '--target',
-        type=str,
-        help='Target node. Only allowed if the original VM is on shared storage.'
-    )
-    clone_parser.add_argument(
-        '-s', '--snapshot',
-        type=str,
-        help='The name of the snapshot.'
-    )
-    clone_parser.add_argument(
-        '-v', '--verbose',
-        action='store_true',
-        help='Enable verbose output'
-    )
 
     start_parser = subparsers.add_parser('start', help='Start VMs')
 
@@ -167,12 +108,6 @@ def main() -> None:
         help='Start the VM after rolling back.'
     )
 
-    load_dotenv()
-    PROXMOX_HOST: str = os.getenv('PROXMOX_HOST')
-    PROXMOX_USER: str = os.getenv('PROXMOX_USER')
-    PROXMOX_PASSWORD: str = os.getenv('PROXMOX_PASSWORD')
-    PROXMOX_REALM: str = os.getenv('PROXMOX_REALM')
-    prox: ProxmoxAPI = ProxmoxAPI(PROXMOX_HOST, user=f'{PROXMOX_USER}@{PROXMOX_REALM}', password=PROXMOX_PASSWORD, verify_ssl=False)
 
     args = parser.parse_args()
 
