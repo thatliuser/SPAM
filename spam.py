@@ -1,7 +1,7 @@
 import argparse
 import clone
 import conf.config as config
-import utils.status as status
+import status as status
 import snapshot
 import utils
 

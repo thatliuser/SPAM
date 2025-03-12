@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-import cli.arguments.options as options
+import arguments.options as options
 import sys
 from dotenv import load_dotenv
 import os
@@ -22,12 +22,12 @@ class CLI(ABC):
 
     @abstractmethod
     def init_parser(self, usage: str = "", desc = None) -> None:
-        self.parser = options.create_base_parser(self.name, usage=usage, description=desc)
+        self.parser = options.create_base_parser(self.name, usage=usage, desc=desc)
 
     def parse(self) -> None:
+        self.load_env()
         self.init_parser()
         options = self.parser.parse_args(self.args[1:])
-        self.load_env()
         self.options = self.post_process_args(options)
     
     def connect(self):
@@ -54,6 +54,7 @@ class CLI(ABC):
     @abstractmethod
     def run(self):
         self.parse()
+        self.connect()
 
     @classmethod
     def cli_executor(cls, args=None):

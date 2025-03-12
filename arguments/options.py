@@ -34,14 +34,21 @@ def add_node_options(parser: argparse.ArgumentParser) -> None:
         type=str,
         help='Name of target node.'
     )
-def add_source_id_options(parser: argparse.ArgumentParser) -> None:
+def add_optional_node_options(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
-        'source_id',
+        '-d', '--node',
+        nargs='?',
+        type=str,
+        help='Name of target node. Replace your default node set in environment variable'
+    )
+def add_vmid_options(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        'vmid',
         nargs='?',
         type=int,
-        help='ID of VM to be cloned. Optional if -e is set.'
+        help='ID of source VM.'
     )
-def add_new_id_options(parser: argparse.ArgumentParser) -> None:
+def add_newid_options(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         'newid',
         nargs='?',
@@ -65,4 +72,12 @@ def add_target_node_options(parser: argparse.ArgumentParser) -> None:
         '-t', '--target',
         type=str,
         help='Target node. Only allowed if the original VM is on shared storage.'
+    )
+def add_range_options(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+            '-r', '--range',
+            nargs=2,
+            metavar=('first', 'last'),
+            type=int,
+            help='Range of VMIDs to modify (inclusive).'
     )
