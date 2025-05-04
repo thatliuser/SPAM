@@ -39,17 +39,23 @@ class Clone(CLI):
         action='store_true',
         help='Cloning workshops'
         )
+        self.parser.add_argument(
+        '-c', '--ccdctraining',
+        action='store_true',
+        help='Cloning ccdc training'
+        )
+        
 
     def post_process_args(self, options):
         # do post processing here
         if not options.node:
             options.node = self.default_node
-        if (not options.node or not options.vmid or not options.newid) and not options.environment and not options.workshop:
+        if (not options.node or not options.vmid or not options.newid) and not options.environment and not options.workshop and not options.ccdctraining:
             self.parser.error("The 'node', 'vmid' and 'newid' arguments are required unless -e is set.")
         include: set[str] = {'newid', 'snapshot', 'target', 'full', 'pool', 'name', 'bwlimit', 'snapname', 'storage', 'target', 'description', 'format'}
         self.clone_args: dict[str,str] = {key: (1 if value is True else 0 if value is False else value) for key, value in vars(options).items() if value is not None and key in include}
 
-        if options.environment:
+        if options.environment or options.ccdctraining:
             self.environment = self.prep_config()
         return options
     
@@ -59,6 +65,8 @@ class Clone(CLI):
             self._clone_env()
         elif self.options.workshop:
             self._clone_workshop()
+        elif self.options.ccdctraining:
+            self._clone_training()
         else:
             self._clone_vm(self.options.node, self.options.vmid, **self.clone_args)
         return
@@ -103,7 +111,39 @@ class Clone(CLI):
             for i in range(1,1 + copies):
                 self._clone_vm(node, template, newid=newid+i-1, target=target_node, name=f"{name}-{i}")
                 cloudinit.set_cloudinit(self.prox, node, newid+i-1, ipconfig0= f"ip={ip.replace("X",str(i))}{subnet},gw={gateway}", net0=f'model={"virtio" if os == "linux" else "e1000e"},bridge={bridge}')
-
+    def _clone_training(self) -> None:
+        copies = int(self.environment["copies"])
+        vmid = int(self.environment["vmid_start"])
+        size = len(self.environment.boxes)
+        router_ip = self.environment["router_ip"]
+        gw = self.environment["gw"]
+        bridge = int(self.environment["bridge_start"])
+        router = None
+        router_count = 1
+        if input(f"Cloning {copies} copies of this environment, starting from VMID {vmid} to {vmid+size*copies - 1}.\n\
+                  Will be using vmbr{bridge} to vmbr{bridge+copies-1} across nodes {", ".join(self.environment.nodes)}\n\
+                  Router IPs will span {router_ip.replace('X', '1')} to {router_ip.replace('X', str(copies))}\n\
+                    Y to continue any other key to quit: ") != "Y":
+            return
+        for box in self.environment.boxes:
+            id = box['id']
+            if self.prox.nodes(self.template_node).qemu(id).config.get()['net1']:
+                router = id
+                break
+        for i in range(copies):
+            for node in self.environment.nodes:
+                for box in self.environment.boxes:
+                    self._clone_vm(self.environment.template_node, box.id, newid=vmid, target=node, name=f'{box.name}-{i}')
+                    if router == box.id:
+                        cloudinit.set_cloudinit(self.prox, node, vmid, ipconfig0=f"ip={router_ip.replace("X",str(router_count))},gw={gw}",net1=f'model=virtio,bridge=vmbr{bridge}')
+                        router_count += 1
+                    else:
+                        net = self.prox.nodes(node).qemu(vmid).config.get()['net0']
+                        model = net.split(',')[0].split('=')[0]
+                        
+                        cloudinit.set_cloudinit(self.prox, node, vmid, net0=f'model={model},bridge=vmbr{bridge}')
+                    vmid += 1
+            bridge += 1
 def main(args=None):
     Clone.cli_executor(args)
 

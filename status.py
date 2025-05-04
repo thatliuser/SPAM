@@ -1,22 +1,103 @@
-from proxmoxer import ProxmoxAPI
-import utils
-
-def start_vm(prox: ProxmoxAPI, node: str, vmid: int = -1) -> None:
-    try:
-        task_id = prox.nodes(node).qemu(vmid).status.start.post()
-        utils.block_until_done(prox, task_id, node)
-        print(f"Starting VMID {vmid} in {node}")
-    except Exception as e:
-        print(e)
-    return
 
 
-def stop_vm(prox: ProxmoxAPI, node: str, vmid: int = -1) -> None:
-    try:
-        task_id = prox.nodes(node).qemu(vmid).status.stop.post()
-        utils.block_until_done(prox, task_id, node)
-        print(f"Stopping VMID {vmid} in {node}")
-    except Exception as e:
-        print(e)
-    return
+from cli import CLI
+import arguments.options as options
+import utils.utils as utils
+import conf.config as config
+
+class Status(CLI):
+    name = "status"
+    def __init__(self, args):
+        super().__init__(args)
+
+        self.status_args: dict = {}
+        self.environment = None
+
+
+    def init_parser(self, usage: str = "", desc = None) -> None:
+        super().init_parser(self.name, desc="Operations on VMs")
+        if not self.default_node:
+            options.add_node_options(self.parser)
+        else:
+            options.add_optional_node_options(self.parser)
+        options.add_vmid_options(self.parser)
+        options.add_range_options(self.parser)
+        self.parser.add_argument(
+            '-p', '--stop',
+            action='store_true',
+            help='Stop the VMs'
+        )
+        self.parser.add_argument(
+            '-d', '--destroy',
+            action='store_true',
+            help='Destroy the VMs'
+        )
+        self.parser.add_argument(
+            '-s', '--start',
+            action='store_true',
+            help='Start the VMs.'
+        )
+
+    def post_process_args(self, options):
+        # do post processing here
+        if not options.node:
+            if self.default_node:
+                options.node = self.default_node
+            else:
+                self.parser.error("Proxmox node must be set in arguments or in environment variables")
+        if not options.vmid and not options.range:
+            self.parser.error("The 'vmid' argument are required unless -r is set.")
+        include = {}
+        self.status_args: dict[str,str] = {key: (1 if value is True else 0 if value is False else value) for key, value in vars(options).items() if value is not None and key in include}
+
+        return options
+    
+    def run(self) -> None:
+        super().run()
+        if self.options.start:
+            func = self._start_vm
+        else:
+            func = self._make_snapshot
+        
+        if self.options.vmid:
+            func(self.options.node, **self.snapshot_args)
+        else:
+            utils.function_over_range(func, self.options.range[0], self.options.range[1], self.options.node, **self.snapshot_args)
+
+        return
+    def _start_vm(self, node: str, vmid: int = -1) -> None:
+        try:
+            task_id = self.prox.nodes(node).qemu(vmid).status.start.post()
+            utils.block_until_done(self.prox, task_id, node)
+            print(f"Starting VMID {vmid} in {node}")
+        except Exception as e:
+            print(e)
+        return
+
+    def _stop_vm(self, node: str, vmid: int = -1) -> None:
+        try:
+            task_id = self.prox.nodes(node).qemu(vmid).status.stop.post()
+            utils.block_until_done(self.prox, task_id, node)
+            print(f"Stopping VMID {vmid} in {node}")
+        except Exception as e:
+            print(e)
+
+    def _destroy_vm(self, node: str, vmid: int = -1) -> None:
+        try:
+            self._stop_vm(node, vmid)
+            task_id = self.prox.nodes(node).qemu(vmid).delete()
+            utils.block_until_done(self.prox, task_id, node)
+            print(f"Stopping VMID {vmid} in {node}")
+        except Exception as e:
+            print(e)
+    def _clean_workshop(self) -> None:
+        pass
+
+def main(args=None):
+    Status.cli_executor(args)
+
+
+if __name__ == "__main__":
+    main()
+
 
