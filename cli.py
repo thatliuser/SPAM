@@ -40,9 +40,12 @@ class CLI(ABC):
         self.proxmox_pass = os.getenv('PROXMOX_PASSWORD')
         self.proxmox_realm = os.getenv('PROXMOX_REALM')
         self.default_node = os.getenv('PROXMOX_DEFAULT_NODE')
+        self.configpath = os.getenv('CONFIG_PATH')
 
     def prep_config(self) -> config.Env:
-        conf: dict[str,str] = config.get_config(self.options.environment)
+        if not self.configpath:
+            self.configpath = "conf/env.yaml"
+        conf: dict[str,str] = config.get_config(self.configpath)
         env: config.Env = config.get_env(conf)
         return env
 

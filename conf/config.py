@@ -8,8 +8,10 @@ class Box:
 
 class Env:
     def __init__(self, env: dict):
-        self.startid = int(env['startid'])
-        self.template_node = env['template_node']
+        if "startid" in env:
+            self.startid = int(env['startid'])
+        if "template_node" in env:
+            self.template_node = env['template_node']
         self.nodes = env['nodes']
         self.boxes = [Box(box) for box in env['boxes']]
 
