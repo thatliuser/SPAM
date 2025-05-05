@@ -37,6 +37,11 @@ class Status(CLI):
             action='store_true',
             help='Start the VMs.'
         )
+        self.parser.add_argument(
+            '-c', '--crossnode',
+            action='store_true',
+            help='Use option to apply configuration settings across different nodes created from training cloning.'
+        )
 
     def post_process_args(self, options):
         # do post processing here
@@ -45,10 +50,13 @@ class Status(CLI):
                 options.node = self.default_node
             else:
                 self.parser.error("Proxmox node must be set in arguments or in environment variables")
-        if not options.vmid and not options.range:
+        if not options.vmid and not options.range and not options.crossnode:
             self.parser.error("The 'vmid' argument are required unless -r is set.")
         include = {}
         self.status_args: dict[str,str] = {key: (1 if value is True else 0 if value is False else value) for key, value in vars(options).items() if value is not None and key in include}
+
+        if options.crossnode:
+            self.environment = self.prep_config()
 
         return options
     
@@ -56,13 +64,17 @@ class Status(CLI):
         super().run()
         if self.options.start:
             func = self._start_vm
-        else:
-            func = self._make_snapshot
+        elif self.options.stop:
+            func = self._stop_vm
+        elif self.options.destroy:
+            func = self._destroy_vm
         
         if self.options.vmid:
             func(self.options.node, **self.snapshot_args)
+        elif self.options.crossnode:
+            self._apply_crossnode(func)
         else:
-            utils.function_over_range(func, self.options.range[0], self.options.range[1], self.options.node, **self.snapshot_args)
+            utils.function_over_range(func, self.options.range[0], self.options.range[1], self.options.node, **self.status_args)
 
         return
     def _start_vm(self, node: str, vmid: int = -1) -> None:
@@ -87,11 +99,21 @@ class Status(CLI):
             self._stop_vm(node, vmid)
             task_id = self.prox.nodes(node).qemu(vmid).delete()
             utils.block_until_done(self.prox, task_id, node)
-            print(f"Stopping VMID {vmid} in {node}")
+            print(f"Destroying VMID {vmid} in {node}")
         except Exception as e:
             print(e)
-    def _clean_workshop(self) -> None:
-        pass
+    def _apply_crossnode(self, func) -> None: 
+        copies = int(self.environment.env["copies"])
+        vmid = int(self.environment.env["vmid_start"])
+        current = 0
+        while current < copies:
+            for node in self.environment.nodes:
+                for _ in self.environment.boxes:
+                    func(node, vmid)
+                    vmid += 1
+                current += 1
+                if current >= copies:
+                    break
 
 def main(args=None):
     Status.cli_executor(args)

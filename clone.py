@@ -1,3 +1,5 @@
+import math
+
 from cli import CLI
 import arguments.options as options
 import utils.cloudinit as cloudinit
@@ -112,37 +114,40 @@ class Clone(CLI):
                 self._clone_vm(node, template, newid=newid+i-1, target=target_node, name=f"{name}-{i}")
                 cloudinit.set_cloudinit(self.prox, node, newid+i-1, ipconfig0= f"ip={ip.replace("X",str(i))}{subnet},gw={gateway}", net0=f'model={"virtio" if os == "linux" else "e1000e"},bridge={bridge}')
     def _clone_training(self) -> None:
-        copies = int(self.environment["copies"])
-        vmid = int(self.environment["vmid_start"])
+        copies = int(self.environment.env["copies"])
+        vmid = int(self.environment.env["vmid_start"])
         size = len(self.environment.boxes)
-        router_ip = self.environment["router_ip"]
-        gw = self.environment["gw"]
-        bridge = int(self.environment["bridge_start"])
+
+        router_ip = self.environment.env["router_ip"]
+        gw = self.environment.env["gw"]
+        bridge = int(self.environment.env["bridge_start"])
         router = None
-        router_count = 1
+        clone_count = 0
         if input(f"Cloning {copies} copies of this environment, starting from VMID {vmid} to {vmid+size*copies - 1}.\n\
-                  Will be using vmbr{bridge} to vmbr{bridge+copies-1} across nodes {", ".join(self.environment.nodes)}\n\
-                  Router IPs will span {router_ip.replace('X', '1')} to {router_ip.replace('X', str(copies))}\n\
-                    Y to continue any other key to quit: ") != "Y":
+Will be using vmbr{bridge} to vmbr{bridge+(math.ceil(copies/len(self.environment.nodes)))-1} across nodes {", ".join(self.environment.nodes)}\n\
+Router IPs will span {router_ip.replace('X', '1')} to {router_ip.replace('X', str(copies))}\n\
+Y to continue any other key to quit: ") != "Y":
             return
         for box in self.environment.boxes:
-            id = box['id']
-            if self.prox.nodes(self.template_node).qemu(id).config.get()['net1']:
+            id = box.id
+            if self.prox.nodes(self.environment.template_node).qemu(id).config.get()['net1']:
                 router = id
                 break
-        for i in range(copies):
+        while clone_count < copies:
             for node in self.environment.nodes:
                 for box in self.environment.boxes:
-                    self._clone_vm(self.environment.template_node, box.id, newid=vmid, target=node, name=f'{box.name}-{i}')
+                    self._clone_vm(self.environment.template_node, box.id, newid=vmid, target=node, name=f'{box.config["name"]}-{clone_count + 1}')
                     if router == box.id:
-                        cloudinit.set_cloudinit(self.prox, node, vmid, ipconfig0=f"ip={router_ip.replace("X",str(router_count))},gw={gw}",net1=f'model=virtio,bridge=vmbr{bridge}')
-                        router_count += 1
+                        cloudinit.set_cloudinit(self.prox, node, vmid, ipconfig0=f"ip={router_ip.replace("X",str(clone_count + 1))},gw={gw}",net1=f'model=virtio,bridge=vmbr{bridge}')
                     else:
                         net = self.prox.nodes(node).qemu(vmid).config.get()['net0']
                         model = net.split(',')[0].split('=')[0]
                         
                         cloudinit.set_cloudinit(self.prox, node, vmid, net0=f'model={model},bridge=vmbr{bridge}')
                     vmid += 1
+                clone_count += 1
+                if clone_count >= copies:
+                    break
             bridge += 1
 def main(args=None):
     Clone.cli_executor(args)

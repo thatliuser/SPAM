@@ -18,7 +18,7 @@ class CLI(ABC):
         self.proxmox_user = None
         self.proxmox_pass = None
         self.proxmox_realm = None
-        self.default_node = None
+
 
     @abstractmethod
     def init_parser(self, usage: str = "", desc = None) -> None:

@@ -1,21 +1,24 @@
 env:
-  template_node: cuci-r730-pve03
+  template_node: cuci-r730-pve01
   nodes:
     - cuci-r730-pve01
     - cuci-r730-pve02
     - cuci-r730-pve03
-  copies: 3
+  copies: 4
   vmid_start: 100000
   router_ip: 10.100.X.0/8
   gw: 10.0.0.1
   bridge_start: 10
   boxes:
-  - id: '406'
+  - id: '20601'
     config:
-      name: powerplex
-  - id: '407'
+      name: router
+    cloud:
+  - id: '20602'
     config:
-      name: storm
-  - id: '407'
+      name: greenvault
+    cloud:
+  - id: '20603'
     config:
-      name: static
+      name: wastewise
+    cloud:

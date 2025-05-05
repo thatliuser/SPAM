@@ -36,7 +36,7 @@ def add_node_options(parser: argparse.ArgumentParser) -> None:
     )
 def add_optional_node_options(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
-        '-d', '--node',
+        '-o', '--node',
         nargs='?',
         type=str,
         help='Name of target node. Replace your default node set in environment variable'
