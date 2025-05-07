@@ -38,12 +38,16 @@ class Clone(CLI):
         )
         self.parser.add_argument(
         '-w', '--workshop',
-        action='store_true',
+        type=str,
+        nargs='?',
+        const='conf/workshop.yaml',
         help='Cloning workshops'
         )
         self.parser.add_argument(
         '-c', '--ccdctraining',
-        action='store_true',
+        type=str,
+        nargs='?',
+        const='conf/training.yaml',
         help='Cloning ccdc training'
         )
         
@@ -130,7 +134,7 @@ Y to continue any other key to quit: ") != "Y":
             return
         for box in self.environment.boxes:
             id = box.id
-            if self.prox.nodes(self.environment.template_node).qemu(id).config.get()['net1']:
+            if 'net1' in self.prox.nodes(self.environment.template_node).qemu(id).config.get():
                 router = id
                 break
         while clone_count < copies:
