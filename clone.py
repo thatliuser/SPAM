@@ -224,7 +224,7 @@ Y to continue any other key to quit: "
                             net1=f"model=virtio,bridge=vmbr{bridge}",
                         )
                     else:
-                        net = self.prox.nodes(node).qemu(vmid).config.get()["net0"]
+                        net = self._get_vm_config(str(vmid))["net0"]
                         model = net.split(",")[0].split("=")[0]
 
                         cloudinit.set_cloudinit(
