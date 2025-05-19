@@ -191,21 +191,24 @@ Y to continue any other key to quit: "
             return
         for box in self.environment.boxes:
             id = box.id
-            if (
-                "net1"
-                in self.prox.nodes(self.environment.template_node).qemu(id).config.get()
-            ):
+            conf = self.prox.nodes(self.environment.template_node).qemu(id).config.get()
+            if "net1" in conf:
                 router = id
                 break
         while clone_count < copies:
             for node in self.environment.nodes:
                 for box in self.environment.boxes:
+                    conf = (
+                        self.prox.nodes(self.environment.template_node)
+                        .qemu(box.id)
+                        .config.get()
+                    )
                     self._clone_vm(
                         self.environment.template_node,
                         box.id,
                         newid=vmid,
                         target=node,
-                        name=f"{box.config['name']}-{clone_count + 1}",
+                        name=f"{conf['name']}-{clone_count + 1}",
                     )
                     if router == box.id:
                         cloudinit.set_cloudinit(
