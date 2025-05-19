@@ -1,9 +1,9 @@
 import yaml
 class Box:
     def __init__(self, box):
-        self.config = box['config']
+        self.config = box.get('config')
         self.id = box['id']
-        self.cloud = box['cloud']
+        self.cloud = box.get('cloud')
 
 class Env:
     def __init__(self, env: dict):
