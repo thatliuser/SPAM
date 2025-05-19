@@ -95,9 +95,13 @@ class Status(CLI):
             print(e)
 
     def _destroy_vm(self, node: str, vmid: int = -1) -> None:
+        args = {
+            "destroy-unreferenced-disks": 1,
+            "purge": 1,
+        }
         try:
             self._stop_vm(node, vmid)
-            task_id = self.prox.nodes(node).qemu(vmid).delete()
+            task_id = self.prox.nodes(node).qemu(vmid).delete(**args)
             utils.block_until_done(self.prox, task_id, node)
             print(f"Destroying VMID {vmid} in {node}")
         except Exception as e:
@@ -106,9 +110,18 @@ class Status(CLI):
         copies = int(self.environment.env["copies"])
         vmid = int(self.environment.env["vmid_start"])
         current = 0
+        template_ids = []
+        for box in self.environment.boxes:
+            resource = self.get_vm_resource(box.id)
+            node = resource["node"]
+            if resource["template"] == 1:
+                template_ids.append(box.id)
+            else:
+                template_ids.append(vmid)
+                vmid += 1
         while current < copies:
             for node in self.environment.nodes:
-                for _ in self.environment.boxes:
+                for _ in template_ids:
                     func(node, vmid)
                     vmid += 1
                 current += 1
