@@ -218,7 +218,6 @@ Y to continue any other key to quit: "
         while clone_count < copies:
             for node in self.environment.nodes:
                 for id in template_ids:
-                    print(id)
                     conf = self.get_vm_config(id)
                     self._clone_vm(
                         id,
