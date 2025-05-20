@@ -176,7 +176,6 @@ class Clone(CLI):
         router_ip = self.environment.env["router_ip"]
         gw = self.environment.env["gw"]
         bridge = int(self.environment.env["bridge_start"])
-        router = None
         clone_count = 0
         if (
             input(
@@ -210,11 +209,6 @@ Y to continue any other key to quit: "
                 template_ids.append(str(vmid))
                 vmid += 1
 
-        for box in self.environment.boxes:
-            id = box.id
-            if "net1" in self.get_vm_config(id):
-                router = id
-                break
         while clone_count < copies:
             for node in self.environment.nodes:
                 for id in template_ids:
@@ -225,7 +219,7 @@ Y to continue any other key to quit: "
                         target=node,
                         name=f"{conf['name']}-{clone_count + 1}",
                     )
-                    if router == id:
+                    if "net1" in conf:
                         cloudinit.set_cloudinit(
                             self.prox,
                             node,
